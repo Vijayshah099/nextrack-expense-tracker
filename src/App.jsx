@@ -7,22 +7,9 @@ const [transactions, setTransactions] = useState(() => {
   const savedTransactions =
     localStorage.getItem("transactions");
 
-  return savedTransactions
-    ? JSON.parse(savedTransactions)
-    : [
-        {
-          id:1,
-          description:"Salary",
-          amount:5000,
-          type:"income"
-        },
-        {
-          id:2,
-          description:"Pizza",
-          amount:250,
-          type:"expense"
-        }
-      ];
+return savedTransactions
+  ? JSON.parse(savedTransactions)
+  : [];
 
 });
  const [description, setDescription] = useState("");
