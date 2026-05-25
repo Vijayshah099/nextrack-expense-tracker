@@ -1,5 +1,12 @@
 import { useState, useEffect } from "react";
 import { Wallet, ArrowDownRight, ArrowUpRight, Plus, Receipt, Search, Filter, History } from 'lucide-react';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer
+} from "recharts";
 
 function App() {
 const [transactions, setTransactions] = useState(() => {
@@ -16,6 +23,11 @@ return savedTransactions
 const [amount, setAmount] = useState("");
 const [type, setType] = useState("expense");
 const [error, setError] = useState("");
+const [showDeleteModal, setShowDeleteModal] = useState(false);
+
+const [transactionToDelete, setTransactionToDelete] = useState(null);
+const [searchTerm, setSearchTerm] = useState("");
+const [category, setCategory] = useState("Food");
 const addTransaction = () => {
   if (!description) {
    setError("Please enter a description");
@@ -29,12 +41,13 @@ if (!amount) {
 
 setError("");
 
-  const newTransaction = {
-    id: Date.now(),
-    description: description,
-    amount: Number(amount),
-    type: type
-  };
+ const newTransaction = {
+  id: Date.now(),
+  description: description,
+  amount: Number(amount),
+  type: type,
+  category: category
+};
 
   setTransactions([
     ...transactions,
@@ -73,6 +86,54 @@ const expense = transactions
   .reduce((total, t) => total + t.amount, 0);
 
 const balance = income - expense;
+const filteredTransactions = transactions.filter(
+  (transaction) =>
+    transaction.description
+      .toLowerCase()
+      .includes(searchTerm.toLowerCase())
+);
+const chartData = [];
+
+// add total income
+if (income > 0) {
+  chartData.push({
+    name: "Income",
+    value: income
+  });
+}
+
+// group expense categories
+const categoryExpenses = transactions
+.filter((t) => t.type === "expense")
+.reduce((acc,curr)=>{
+
+if(!acc[curr.category]){
+acc[curr.category]=0;
+}
+
+acc[curr.category]+=curr.amount;
+
+return acc;
+
+},{});
+
+Object.entries(categoryExpenses)
+.forEach(([category,amount])=>{
+chartData.push({
+name:category,
+value:amount
+});
+});
+
+const COLORS=[
+"#10b981",
+"#ef4444",
+"#6366f1",
+"#f59e0b",
+"#8b5cf6",
+"#06b6d4",
+"#ec4899"
+];
 
 useEffect(() => {
 
@@ -82,6 +143,19 @@ useEffect(() => {
   );
 
 }, [transactions]);
+const confirmDelete = () => {
+
+setTransactions(
+transactions.filter(
+(transaction)=>transaction.id!==transactionToDelete
+)
+);
+
+setShowDeleteModal(false);
+
+setTransactionToDelete(null);
+
+};
 
 return(
 <>
@@ -199,6 +273,24 @@ return(
                     </select>
                   </div>
                 </div>
+                <div>
+  <label className="block text-sm font-medium text-slate-400 mb-2">
+    Category
+  </label>
+
+  <select
+    className="glass-input"
+    value={category}
+    onChange={(e) => setCategory(e.target.value)}
+  >
+    <option>Food</option>
+    <option>Travel</option>
+    <option>Shopping</option>
+    <option>Bills</option>
+    <option>Entertainment</option>
+    <option>Income</option>
+  </select>
+</div>
 {
   error && (
     <p className="text-red-400 text-sm">
@@ -227,40 +319,56 @@ return(
                 </h3>
                 
                 <div className="flex items-center gap-3">
-                  <button type="button" className="p-2 rounded-lg bg-dark-900/50 text-slate-400 hover:text-white hover:bg-dark-600 transition-colors border border-dark-600/50">
-                    <Search className="w-4 h-4" />
-                  </button>
+                  <input
+  type="text"
+  placeholder="Search..."
+  className="glass-input w-40"
+  value={searchTerm}
+  onChange={(e) => setSearchTerm(e.target.value)}
+/>
                   <button type="button" className="p-2 rounded-lg bg-dark-900/50 text-slate-400 hover:text-white hover:bg-dark-600 transition-colors border border-dark-600/50">
                     <Filter className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              {/* Transaction List Area (Empty State) */}
-             <div className="space-y-3">
+              {/* Transaction List Area */}
 
-{transactions.map((transaction) => (
+<div className="space-y-3">
+
+{filteredTransactions.map((transaction) => (
 
 <div
  key={transaction.id}
  className="p-4 rounded-xl bg-slate-800 flex justify-between items-center"
 >
 
-<span>{transaction.description}</span>
+<div>
+   <p className="text-white font-medium">
+      {transaction.description}
+   </p>
+
+   <p className="text-xs text-slate-400">
+      {transaction.category}
+   </p>
+</div>
 
 <div className="flex items-center">
 
-  <span>
-    {transaction.type === "income" ? "+" : "-"}₹
-    {transaction.amount}
-  </span>
+<span>
+ {transaction.type === "income" ? "+" : "-"}₹
+ {transaction.amount}
+</span>
 
-  <button
-    onClick={() => deleteTransaction(transaction.id)}
-    className="text-red-400 ml-4"
-  >
-    🗑️
-  </button>
+<button
+ onClick={() => {
+   setTransactionToDelete(transaction.id);
+   setShowDeleteModal(true);
+}}
+ className="text-red-400 ml-4"
+>
+ 🗑️
+</button>
 
 </div>
 
@@ -270,12 +378,97 @@ return(
 
 </div>
 
+<div className="mt-8 h-64">
+
+<h3 className="text-white font-semibold mb-4">
+   Spending Overview
+</h3>
+
+<ResponsiveContainer width="100%" height="100%">
+
+<PieChart>
+
+<Pie
+ data={chartData}
+ dataKey="value"
+ nameKey="name"
+ cx="50%"
+ cy="50%"
+ innerRadius={60}
+ outerRadius={100}
+ paddingAngle={5}
+ label
+>
+
+{chartData.map((entry,index)=>(
+<Cell
+ key={index}
+ fill={COLORS[index % COLORS.length]}
+/>
+))}
+
+</Pie>
+
+<Tooltip
+ contentStyle={{
+   background:"#16181d",
+   border:"none",
+   borderRadius:"10px",
+   color:"white"
+ }}
+/>
+
+</PieChart>
+
+</ResponsiveContainer>
+
+</div>
+
+
+
             </div>
           </div>
           
         </div>
       </div>
     </div>
+    {showDeleteModal && (
+
+<div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50">
+
+<div className="glass-panel p-8 w-[400px]">
+
+<h2 className="text-white text-xl font-bold mb-3">
+Delete Transaction
+</h2>
+
+<p className="text-slate-400 mb-6">
+Are you sure you want to delete this transaction?
+</p>
+
+<div className="flex gap-4">
+
+<button
+onClick={()=>setShowDeleteModal(false)}
+className="flex-1 p-3 rounded-xl bg-slate-700 text-white"
+>
+Cancel
+</button>
+
+<button
+onClick={confirmDelete}
+className="flex-1 p-3 rounded-xl bg-red-500 text-white"
+>
+Delete
+</button>
+
+</div>
+
+</div>
+
+</div>
+
+)}
     </>
   );
 }
