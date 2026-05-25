@@ -134,6 +134,9 @@ const COLORS=[
 "#06b6d4",
 "#ec4899"
 ];
+useEffect(() => {
+  localStorage.removeItem("transactions");
+}, []);
 
 useEffect(() => {
 
